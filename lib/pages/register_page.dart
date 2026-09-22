@@ -17,17 +17,38 @@ class _RegisterPageState extends State<RegisterPage> {
   final phoneController = TextEditingController();
   final api = AuthService();
   final log = LogService();
+  bool _loading = false;
+
+  @override
+  void dispose() {
+    usernameController.dispose();
+    passwordController.dispose();
+    emailController.dispose();
+    phoneController.dispose();
+    super.dispose();
+  }
 
   void register() async {
-    log.log("注册${usernameController.text}");
+    final username = usernameController.text.trim();
+    final password = passwordController.text;
+    if (username.isEmpty || password.isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("用户名和密码不能为空")));
+      return;
+    }
+    if (_loading) return;
+    setState(() => _loading = true);
+    log.log("注册$username");
 
     try {
       var result = await api.register(
-        username: usernameController.text,
-        password: passwordController.text,
-        email: emailController.text,
-        phone: phoneController.text,
+        username: username,
+        password: password,
+        email: emailController.text.trim(),
+        phone: phoneController.text.trim(),
       );
+      if (!mounted) return;
 
       if (result["code"] == 200) {
         ScaffoldMessenger.of(
@@ -39,9 +60,12 @@ class _RegisterPageState extends State<RegisterPage> {
       }
     } catch (e) {
       log.errorLog("注册失败", 800, "$e");
+      if (!mounted) return;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text("注册失败:$e")));
+    } finally {
+      if (mounted) setState(() => _loading = false);
     }
   }
 
@@ -77,7 +101,10 @@ class _RegisterPageState extends State<RegisterPage> {
 
             const SizedBox(height: 30),
 
-            ElevatedButton(onPressed: register, child: const Text("注册")),
+            ElevatedButton(
+              onPressed: _loading ? null : register,
+              child: Text(_loading ? "注册中..." : "注册"),
+            ),
           ],
         ),
       ),

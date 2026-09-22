@@ -11,8 +11,6 @@ class AuthService {
         ApiConfig.loginApi,
         data: {"username": username, "password": password},
       );
-      print(response);
-
       return response.data;
     } catch (e) {
       log.errorLog("登录失败", 800, "登录失败:$e");

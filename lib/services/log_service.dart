@@ -6,6 +6,6 @@ class LogService {
   }
 
   void errorLog(String msg, int level, String error) {
-    developer.log(msg, name: 'ai.friend.network', level: level, error: null);
+    developer.log(msg, name: 'ai.friend.network', level: level, error: error);
   }
 }

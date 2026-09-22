@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../services/auth_service.dart';
 import '../services/log_service.dart';
-import 'chat_page.dart';
 import 'register_page.dart';
+import '../services/session_service.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -20,18 +20,36 @@ class _LoginPageState extends State<LoginPage> {
   final passwordController = TextEditingController();
   final api = AuthService();
   final log = LogService();
+  bool _loading = false;
+
+  @override
+  void dispose() {
+    usernameController.dispose();
+    passwordController.dispose();
+    super.dispose();
+  }
 
   void login() async {
-    String username = usernameController.text;
-    String password = passwordController.text;
+    final username = usernameController.text.trim();
+    final password = passwordController.text;
+    if (username.isEmpty || password.isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("请输入用户名和密码")));
+      return;
+    }
+    if (_loading) return;
+    setState(() => _loading = true);
 
     try {
       var result = await api.login(username, password);
+      if (!mounted) return;
 
       if (result["code"] == 200) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const ChatPage()),
+        // ListenableBuilder 监听登录态，自动切换到 HomeShell
+        await session.signIn(
+          token: result['data'] as String,
+          username: username,
         );
       } else {
         ScaffoldMessenger.of(
@@ -39,11 +57,13 @@ class _LoginPageState extends State<LoginPage> {
         ).showSnackBar(SnackBar(content: Text(result["message"] ?? "登录失败")));
       }
     } catch (e) {
-      print("网络异常:$e");
       log.errorLog("网络异常", 800, "$e");
+      if (!mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text("网络异常:$e")));
+      ).showSnackBar(const SnackBar(content: Text("网络异常，请稍后重试")));
+    } finally {
+      if (mounted) setState(() => _loading = false);
     }
   }
 
@@ -88,7 +108,10 @@ class _LoginPageState extends State<LoginPage> {
             SizedBox(
               width: double.infinity,
 
-              child: ElevatedButton(onPressed: login, child: const Text("登录")),
+              child: ElevatedButton(
+                onPressed: _loading ? null : login,
+                child: Text(_loading ? "登录中..." : "登录"),
+              ),
             ),
 
             TextButton(
